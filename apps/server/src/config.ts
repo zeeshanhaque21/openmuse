@@ -34,6 +34,7 @@ export interface Config {
   dataDir: string;
   databaseUrl?: string;
   accessKey?: string;
+  ownerSetupKey?: string;
   encryptionKey?: string;
   model?: string;
   jevMode?: "off" | "sample" | "live";
@@ -119,6 +120,7 @@ export function readConfig(): Config {
     dataDir: resolve(process.env.DATA_DIR ?? ".openmuse"),
     databaseUrl: process.env.DATABASE_URL,
     accessKey: process.env.OPENMUSE_ACCESS_KEY,
+    ownerSetupKey: process.env.OPENMUSE_OWNER_SETUP_KEY,
     encryptionKey: process.env.TOKEN_ENCRYPTION_KEY,
     model: process.env.MODEL,
     jevMode,
@@ -143,10 +145,12 @@ export function readConfig(): Config {
   };
   if (
     mode === "live" &&
-    (!config.accessKey || config.accessKey.length < 24 || !config.encryptionKey)
+    (((!config.accessKey || config.accessKey.length < 24) &&
+      (!config.ownerSetupKey || config.ownerSetupKey.length < 24)) ||
+      !config.encryptionKey)
   )
     throw new Error(
-      "Live mode requires OPENMUSE_ACCESS_KEY (24+ characters) and TOKEN_ENCRYPTION_KEY (32-byte base64)",
+      "Live mode requires OPENMUSE_ACCESS_KEY or OPENMUSE_OWNER_SETUP_KEY (24+ characters) and TOKEN_ENCRYPTION_KEY (32-byte base64)",
     );
   if (mode === "sample" && !["127.0.0.1", "localhost", "::1"].includes(config.host))
     throw new Error("Sample workspace is local-only. HOST must be a loopback address.");

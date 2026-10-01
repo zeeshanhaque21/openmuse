@@ -32,7 +32,7 @@ import {
   IdeasScreen,
 } from "./src/agent-ui";
 import { AgentWorkspaceProvider, useAgentWorkspace } from "./src/agent-workspace";
-import { API_URL, createSession, MuseApi } from "./src/api";
+import { API_URL, authStatus, createSession, MuseApi } from "./src/api";
 import { ChatScreen, WorkspaceTools } from "./src/chat";
 import { ComputerEntry } from "./src/computer";
 import { ComputerDraftProvider } from "./src/computer-drafts";
@@ -69,22 +69,45 @@ const titles: Partial<Record<Section, { title: string; subtitle: string }>> = {
 export default function App() {
   const [token, setToken] = useState("");
   const [accessKey, setAccessKey] = useState("");
+  const [password, setPassword] = useState("");
+  const [setupKey, setSetupKey] = useState("");
+  const [confirmation, setConfirmation] = useState("");
+  const [login, setLogin] = useState<{
+    method: "password" | "access-key";
+    setupRequired: boolean;
+  }>();
   const [busy, setBusy] = useState(true);
   const [error, setError] = useState("");
-  const connect = useCallback(async (key?: string) => {
-    setBusy(true);
-    setError("");
-    try {
-      const session = await createSession(key);
-      setToken(session.token);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
-    } finally {
-      setBusy(false);
-    }
-  }, []);
+  const connect = useCallback(
+    async (key?: string, credentials?: { password: string; setupKey?: string }) => {
+      setBusy(true);
+      setError("");
+      try {
+        const session = await createSession(key, credentials);
+        setToken(session.token);
+        setPassword("");
+        setSetupKey("");
+        setConfirmation("");
+        setAccessKey("");
+      } catch (e) {
+        setError(e instanceof Error ? e.message : String(e));
+      } finally {
+        setBusy(false);
+      }
+    },
+    [],
+  );
   useEffect(() => {
-    void connect();
+    void authStatus()
+      .then((status) => {
+        setLogin(status);
+        if (status.method === "access-key") void connect();
+        else setBusy(false);
+      })
+      .catch((e) => {
+        setError(String(e));
+        setBusy(false);
+      });
   }, [connect]);
   return (
     <SafeAreaProvider>
@@ -94,7 +117,14 @@ export default function App() {
           runtimeUrl={`${API_URL}/api/copilotkit`}
           headers={{ Authorization: `Bearer ${token}` }}
         >
-          <WorkspaceApp token={token} />
+          <WorkspaceApp
+            token={token}
+            signOut={async () => {
+              await new MuseApi(token).request("/api/session", undefined, "DELETE");
+              setToken("");
+              setLogin(await authStatus());
+            }}
+          />
         </CopilotKitProvider>
       ) : (
         <SafeAreaView
@@ -119,19 +149,73 @@ export default function App() {
             ) : (
               <Card style={{ width: "100%" }}>
                 <ErrorNotice error={error} />
-                <Field
-                  label="Workspace access key"
-                  value={accessKey}
-                  onChangeText={setAccessKey}
-                  secureTextEntry
-                  placeholder="Required for a live workspace"
-                />
-                <Button primary onPress={() => void connect(accessKey || undefined)}>
-                  Open workspace
+                {login?.method === "password" ? (
+                  <>
+                    {login.setupRequired && (
+                      <Field
+                        label="One-time owner setup code"
+                        value={setupKey}
+                        onChangeText={setSetupKey}
+                        secureTextEntry
+                        placeholder="Provided by your deployment"
+                      />
+                    )}
+                    <Field
+                      label={login.setupRequired ? "Choose your password" : "Password"}
+                      value={password}
+                      onChangeText={setPassword}
+                      secureTextEntry
+                      placeholder="At least 12 characters"
+                    />
+                    {login.setupRequired && (
+                      <Field
+                        label="Confirm password"
+                        value={confirmation}
+                        onChangeText={setConfirmation}
+                        secureTextEntry
+                      />
+                    )}
+                  </>
+                ) : (
+                  <Field
+                    label="Workspace access key"
+                    value={accessKey}
+                    onChangeText={setAccessKey}
+                    secureTextEntry
+                    placeholder="Required for a live workspace"
+                  />
+                )}
+                <Button
+                  primary
+                  onPress={() => {
+                    if (!login) {
+                      void authStatus()
+                        .then(setLogin)
+                        .catch((e) => setError(String(e)));
+                      return;
+                    }
+                    if (login.method === "password") {
+                      if (login.setupRequired && password !== confirmation) {
+                        setError("Passwords do not match.");
+                        return;
+                      }
+                      void connect(undefined, {
+                        password,
+                        ...(login.setupRequired ? { setupKey } : {}),
+                      });
+                    } else void connect(accessKey || undefined);
+                  }}
+                >
+                  {!login
+                    ? "Retry connection"
+                    : login.setupRequired
+                      ? "Create owner account"
+                      : "Open workspace"}
                 </Button>
                 <Text style={[s.small, { marginTop: 15 }]}>
-                  Local workspaces open without a key. Make sure your OpenMuse server is running at{" "}
-                  {API_URL}.
+                  {login?.method === "password"
+                    ? "This is your private OpenMuse account. Provider connections are configured separately after sign-in."
+                    : `Local workspaces open without a key. Your server is at ${API_URL}.`}
                 </Text>
               </Card>
             )}
@@ -141,7 +225,7 @@ export default function App() {
     </SafeAreaProvider>
   );
 }
-function WorkspaceApp({ token }: { token: string }) {
+function WorkspaceApp({ token, signOut }: { token: string; signOut: () => Promise<void> }) {
   const api = useMemo(() => new MuseApi(token), [token]);
   const [workspace, setWorkspace] = useState<Workspace>();
   const [section, setSection] = useState<Section>("chat");
@@ -215,6 +299,7 @@ function WorkspaceApp({ token }: { token: string }) {
         <ComputerDraftProvider key={token}>
           <ThreadsProvider>
             <WorkspaceShell
+              signOut={() => void signOut().catch((e) => setError(String(e)))}
               detail={detail}
               toast={toast}
               clearToast={() => setToast("")}
@@ -228,12 +313,14 @@ function WorkspaceApp({ token }: { token: string }) {
   );
 }
 function WorkspaceShell({
+  signOut,
   detail,
   toast,
   clearToast,
   error,
   prompt,
 }: {
+  signOut: () => void;
   detail?: Detail;
   toast: string;
   clearToast: () => void;
@@ -430,6 +517,9 @@ function WorkspaceShell({
               alignItems: "center",
             }}
           >
+            <Button small onPress={signOut} style={{ marginBottom: 8 }}>
+              Sign out
+            </Button>
             <View
               style={{
                 flexDirection: "row",
