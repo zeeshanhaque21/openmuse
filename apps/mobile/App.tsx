@@ -33,6 +33,7 @@ import {
 } from "./src/agent-ui";
 import { AgentWorkspaceProvider, useAgentWorkspace } from "./src/agent-workspace";
 import { API_URL, authStatus, createSession, MuseApi } from "./src/api";
+import { readBrowserSession, writeBrowserSession } from "./src/browser-session";
 import { ChatScreen, WorkspaceTools } from "./src/chat";
 import { ComputerEntry } from "./src/computer";
 import { ComputerDraftProvider } from "./src/computer-drafts";
@@ -84,6 +85,7 @@ export default function App() {
       setError("");
       try {
         const session = await createSession(key, credentials);
+        writeBrowserSession(API_URL, session.token);
         setToken(session.token);
         setPassword("");
         setSetupKey("");
@@ -98,10 +100,22 @@ export default function App() {
     [],
   );
   useEffect(() => {
-    void authStatus()
+    let saved = readBrowserSession(API_URL);
+    void authStatus(saved || undefined)
+      .catch(async (error) => {
+        if (saved && error instanceof Error && "status" in error && error.status === 401) {
+          writeBrowserSession(API_URL, "");
+          saved = "";
+          return authStatus();
+        }
+        throw error;
+      })
       .then((status) => {
         setLogin(status);
-        if (status.method === "access-key") void connect();
+        if (saved) {
+          setToken(saved);
+          setBusy(false);
+        } else if (status.method === "access-key") void connect();
         else setBusy(false);
       })
       .catch((e) => {
@@ -121,6 +135,7 @@ export default function App() {
             token={token}
             signOut={async () => {
               await new MuseApi(token).request("/api/session", undefined, "DELETE");
+              writeBrowserSession(API_URL, "");
               setToken("");
               setLogin(await authStatus());
             }}

@@ -44,12 +44,18 @@ export async function createSession(
   return payload;
 }
 
-export async function authStatus(): Promise<{
+export async function authStatus(token?: string): Promise<{
   method: "password" | "access-key";
   setupRequired: boolean;
 }> {
-  const response = await fetch(`${API_URL}/api/auth/status`, { cache: "no-store" });
+  const response = await fetch(`${API_URL}/api/auth/status`, {
+    cache: "no-store",
+    ...(token ? { headers: { Authorization: `Bearer ${token}` } } : {}),
+  });
   const payload = await response.json();
-  if (!response.ok) throw new Error(payload.error || "Could not check owner setup.");
+  if (!response.ok)
+    throw Object.assign(new Error(payload.error || "Could not check owner setup."), {
+      status: response.status,
+    });
   return payload;
 }

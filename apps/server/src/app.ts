@@ -107,6 +107,9 @@ export async function createApp(
     loginAttempts = 0;
   app.get("/api/auth/status", async (c) => {
     c.header("Cache-Control", "no-store");
+    // Public setup discovery stays public; a supplied saved session must still be valid.
+    const authorization = c.req.header("authorization");
+    if (authorization) await auth.owner(authorization);
     return c.json(await auth.status());
   });
   app.use("/api/session", async (_c, next) => {
