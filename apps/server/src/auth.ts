@@ -81,14 +81,48 @@ export class Auth {
   }
   async owner(authorization?: string) {
     if (!authorization?.startsWith("Bearer ")) throw new AppError("Sign in to OpenMuse", 401);
+    return this.sessionOwner(digest(authorization.slice(7)).toString("hex"));
+  }
+  private async sessionOwner(id: string) {
     const session = await this.db.get<{ owner: string; expiresAt: number }>(
       "system",
       "sessions",
-      digest(authorization.slice(7)).toString("hex"),
+      id,
     );
-    if (!session || session.expiresAt < Date.now())
+    if (!session || session.expiresAt <= Date.now())
       throw new AppError("Session expired. Sign in again.", 401);
     return session.owner;
+  }
+  // Scoped to OpenBot's identity authority. Never forward the original workspace token.
+  async openBotCookie(authorization?: string) {
+    await this.owner(authorization);
+    const id = digest(authorization?.slice(7) ?? "").toString("hex");
+    const signature = createHmac("sha256", this.signingKey)
+      .update(`openbot-session\n${id}`)
+      .digest("hex");
+    return `better-auth.session_token=${id}.${signature}`;
+  }
+  async openBotIdentity(cookie?: string) {
+    const match = /^better-auth\.session_token=([a-f0-9]{64})\.([a-f0-9]{64})$/.exec(cookie ?? "");
+    if (!match) throw new AppError("Sign in to OpenMuse", 401);
+    const [, id, signature] = match;
+    const expected = createHmac("sha256", this.signingKey)
+      .update(`openbot-session\n${id}`)
+      .digest();
+    if (!timingSafeEqual(expected, Buffer.from(signature, "hex")))
+      throw new AppError("Sign in to OpenMuse", 401);
+    const owner = await this.sessionOwner(id);
+    const userId = createHmac("sha256", this.signingKey)
+      .update(`openbot-owner\n${owner}`)
+      .digest("hex");
+    return {
+      user: {
+        id: userId,
+        email: `${userId}@openmuse.invalid`,
+        name: "OpenMuse owner",
+        role: "user" as const,
+      },
+    };
   }
   sign(owner: string, path: string) {
     const expires = String(Date.now() + 15 * 60 * 1000);
