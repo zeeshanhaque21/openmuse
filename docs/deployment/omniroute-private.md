@@ -15,7 +15,7 @@ Catalog presence does not prove a model is currently authenticated, healthy, fre
 
 ## Hosting
 
-The intended zero-new-paid-service topology is a free Render static frontend and a private persistent backend on moonscape.
+The deployed topology is a free Render static frontend and a private persistent backend on moonscape.
 The backend is reachable through Tailscale HTTPS, so the browser must be on the tailnet.
 The existing OmniRoute HTTPS service on port 443 must remain unchanged.
 Provider sign-in and API-key management remain in OmniRoute.
@@ -29,4 +29,44 @@ OpenMuse has its own separate one-time owner setup and password login.
 - A real OpenMuse task through `codex/gpt-5.6-sol` on moonscape OmniRoute saved a validated plan artifact.
 - A separate gateway-backed calendar request stopped at owner approval without executing an external action.
 
-Deployment and hosted browser validation remain pending until explicitly recorded here.
+## Deployment state
+
+- Frontend: https://openmuse-zeeshan.onrender.com/
+- Private API: https://moonscapenas.time-mora.ts.net:8443
+- Render static service: `srv-daurmkbncjis7382i11g`.
+- Render deploy `dep-daurmkrncjis7382i1t0` succeeded from commit `2606f6f`.
+- Backend: Docker container `openmuse-personal`, image `openmuse-personal:2606f6f`, unprivileged user, read-only root filesystem, private loopback listener, and restart policy.
+- Backend data: `/home/moonscape/projects/OpenMuse-subscription-setup/.openmuse/data`.
+- Backend health and owner-setup status returned HTTP 200 through Tailscale HTTPS.
+- Private workspace and model catalog returned HTTP 401 without a session.
+- No paid Render web services, disks, or databases were created.
+- Existing OmniRoute installation and its HTTPS port 443 are unchanged.
+
+The host kernel reported that Docker's requested memory limit could not be enforced.
+The container's 2 GB memory setting must not be reported as an effective limit.
+Browser/computer workers are not configured in this deployment; the app reports them as unavailable.
+
+The owner account is deliberately unclaimed until you set your password.
+The one-time code is stored privately under `.openmuse/owner-setup-code.txt` on moonscape.
+The user took control of the browser before the hosted UI check, so that check and hosted model-picker interaction remain pending.
+Local browser and HTTP tests do not replace that hosted validation.
+
+## Google configuration
+
+The user-provided Google Web application OAuth client is now configured on the backend.
+Its registered redirect URI matches `https://moonscapenas.time-mora.ts.net:8443/api/google/callback`.
+The existing encryption key, owner setup key, gateway key, and persistent data directory were preserved.
+OpenMuse was recreated with the updated environment; the old stopped container is retained for rollback.
+Runtime verification confirmed `GoogleAuth.configured()` is true and token encryption/decryption works with the existing key.
+Public health checks returned HTTP 200 and owner setup remained complete after restart.
+The user still needs to complete Google's consent flow through Connect Google.
+Configured credentials do not establish that Google authorization has succeeded.
+
+## Validation notes
+
+Focused owner/model HTTP and regression tests passed: 8 tests.
+Server, mobile, and spike TypeScript checks passed.
+A later full-suite attempt hit the 120-second harness deadline with 271 passing tests and one cancelled Jev persistence file.
+Do not report that attempt as a full-suite pass.
+
+Refs #1.

@@ -19,20 +19,18 @@ test("gateway catalog is private, supports any catalog model, persists selection
       res.writeHead(503).end();
       return;
     }
-    res
-      .writeHead(200, { "Content-Type": "application/json" })
-      .end(
-        JSON.stringify({
-          data: [
-            { id: "codex/arbitrary-model" },
-            { id: "claude/arbitrary-model" },
-            { id: "local/custom-model" },
-            { id: "combo-with-user-rules" },
-            { id: "local/custom-model" },
-            { id: "bad\nmodel" },
-          ],
-        }),
-      );
+    res.writeHead(200, { "Content-Type": "application/json" }).end(
+      JSON.stringify({
+        data: [
+          { id: "codex/arbitrary-model" },
+          { id: "claude/arbitrary-model" },
+          { id: "local/custom-model" },
+          { id: "combo-with-user-rules" },
+          { id: "local/custom-model" },
+          { id: "bad\nmodel" },
+        ],
+      }),
+    );
   });
   upstream.listen(0, "127.0.0.1");
   await once(upstream, "listening");
