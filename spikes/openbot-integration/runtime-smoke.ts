@@ -13,6 +13,20 @@ import type { Config } from "../../apps/server/src/config.ts";
 import { createStore } from "../../apps/server/src/db.ts";
 import { AppError } from "../../apps/server/src/errors.ts";
 
+async function bounded<T>(work: Promise<T>, milliseconds: number, message: string) {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      work,
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(() => reject(new Error(message)), milliseconds);
+      }),
+    ]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 const directory = resolve(".openmuse/openbot-spike");
 await mkdir(directory, { recursive: true, mode: 0o700 });
 const dataDir = await mkdtemp(resolve(directory, "owner-"));
@@ -146,12 +160,11 @@ try {
       streamed = true;
     },
   });
-  await Promise.race([
+  await bounded(
     agent.runAgent({ runId: randomUUID() }),
-    delay(120_000).then(() => {
-      throw new Error("Live conversation exceeded 120 seconds");
-    }),
-  ]);
+    120_000,
+    "Live conversation exceeded 120 seconds",
+  );
   subscription.unsubscribe();
   assert.ok(streamed, "No streamed text received");
   assert.ok(
@@ -169,12 +182,7 @@ try {
     headers: { cookie },
   });
   restored.threadId = channel.threadId;
-  await Promise.race([
-    restored.connectAgent(),
-    delay(30_000).then(() => {
-      throw new Error("History reload exceeded 30 seconds");
-    }),
-  ]);
+  await bounded(restored.connectAgent(), 30_000, "History reload exceeded 30 seconds");
   assert.ok(
     restored.messages.some(
       (message) =>
@@ -203,9 +211,9 @@ try {
   console.log(JSON.stringify(result));
 } finally {
   agent?.abortRun();
-  if (child.exitCode === null) {
+  if (child.pid && child.exitCode === null) {
     // Logs append directly to disk, and this PID is the child started above, not a pattern match.
-    process.kill(child.pid ?? 0, 0);
+    process.kill(child.pid, 0);
     child.kill("SIGTERM");
     await Promise.race([
       new Promise<void>((resolve) => child.once("exit", () => resolve())),

@@ -70,6 +70,9 @@ Then run `pnpm exec tsx spikes/openbot-integration/runtime-smoke.ts` from the pr
 The spike binds both local HTTP listeners to loopback, sanitizes inherited environment variables, and shuts down its child API on exit.
 Its logs and result receipt remain private under `.openmuse/openbot-spike/`.
 It creates a fresh isolated owner and private Bot on each run; it is not a batch benchmark or a cleanup script.
+The Jetson test database is stopped after the successful proof, with its named volume retained.
+Run `docker start openbot-integration-pgvector` on the Jetson before another conversation smoke.
+The earlier plain-PostgreSQL attempt is retained as the stopped `openbot-integration-postgres` container, not used by the proof.
 
 ## Remaining integration gates
 
