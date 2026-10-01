@@ -46,7 +46,7 @@ The host kernel reported that Docker's requested memory limit could not be enfor
 The container's 2 GB memory setting must not be reported as an effective limit.
 Browser/computer workers are not configured in this deployment; the app reports them as unavailable.
 
-The owner account is deliberately unclaimed until you set your password.
+The owner account is now set up and remained present after the Google configuration restart.
 The one-time code is stored privately under `.openmuse/owner-setup-code.txt` on moonscape.
 The user took control of the browser before the hosted UI check, so that check and hosted model-picker interaction remain pending.
 Local browser and HTTP tests do not replace that hosted validation.
@@ -68,5 +68,6 @@ Focused owner/model HTTP and regression tests passed: 8 tests.
 Server, mobile, and spike TypeScript checks passed.
 A later full-suite attempt hit the 120-second harness deadline with 271 passing tests and one cancelled Jev persistence file.
 Do not report that attempt as a full-suite pass.
+The subsequent full-suite run with four concurrent test files and a 240-second budget passed all 278 tests, with zero failures, cancellations, or skips.
 
 Refs #1.
