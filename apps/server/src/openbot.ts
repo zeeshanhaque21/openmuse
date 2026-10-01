@@ -266,6 +266,7 @@ export class OpenBotBridge {
 }
 
 class BridgeAgent extends AbstractAgent {
+  private cancelRun?: () => void;
   constructor(
     private readonly bridge: OpenBotBridge,
     private readonly authorization?: string,
@@ -275,12 +276,34 @@ class BridgeAgent extends AbstractAgent {
   clone() {
     return new BridgeAgent(this.bridge, this.authorization);
   }
+  abortRun() {
+    this.cancelRun?.();
+    super.abortRun();
+  }
   run(input: RunAgentInput): Observable<BaseEvent> {
     return new Observable((subscriber) => {
       const abort = new AbortController();
       let remote: ProxiedCopilotRuntimeAgent | undefined;
       let terminal = false;
       let subscription: { unsubscribe(): void } | undefined;
+      let stopRemote: (() => Promise<void>) | undefined;
+      let cancelled = false;
+      const cancel = () => {
+        if (cancelled) return;
+        cancelled = true;
+        abort.abort();
+        const close = () => {
+          remote?.abortRun();
+          subscription?.unsubscribe();
+        };
+        if (!terminal && stopRemote)
+          void stopRemote()
+            .catch(() => {})
+            .finally(close);
+        else close();
+        subscriber.complete();
+      };
+      this.cancelRun = cancel;
       void this.bridge
         .connection(this.authorization, input.threadId, abort.signal)
         .then(({ link, cookie }) => {
@@ -291,6 +314,19 @@ class BridgeAgent extends AbstractAgent {
             headers: { cookie },
           });
           remote.threadId = link.remoteThreadId ?? "";
+          stopRemote = async () => {
+            // Stop via the authenticated runtime before closing its websocket. Unsubscribing first
+            // discards Phoenix's buffered stop message and leaves the inner runner alive.
+            await fetch(
+              `${this.bridge.url}/api/copilotkit/agent/${encodeURIComponent(link.botId ?? "")}/stop/${encodeURIComponent(link.remoteThreadId ?? "")}`,
+              {
+                method: "POST",
+                headers: { cookie, "content-type": "application/json" },
+                redirect: "manual",
+                signal: AbortSignal.timeout(10_000),
+              },
+            );
+          };
           subscription = remote
             .run({
               ...input,
@@ -327,9 +363,8 @@ class BridgeAgent extends AbstractAgent {
           }
         });
       return () => {
-        abort.abort();
-        remote?.abortRun();
-        subscription?.unsubscribe();
+        cancel();
+        if (this.cancelRun === cancel) this.cancelRun = undefined;
       };
     });
   }

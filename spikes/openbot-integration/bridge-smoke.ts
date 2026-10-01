@@ -54,6 +54,12 @@ gateway.all("/v1/*", async (c) => {
       // A deterministic delayed model stream isolates stop propagation without another model call.
       return streamSSE(c, async (stream) => {
         cancelStarted = true;
+        const cancelled = new Promise<void>((resolve) =>
+          stream.onAbort(() => {
+            cancelReachedGateway = true;
+            resolve();
+          }),
+        );
         await stream.writeSSE({
           data: JSON.stringify({
             id: "cancel-proof",
@@ -69,16 +75,7 @@ gateway.all("/v1/*", async (c) => {
             ],
           }),
         });
-        await bounded(
-          new Promise<void>((resolve) =>
-            stream.onAbort(() => {
-              cancelReachedGateway = true;
-              resolve();
-            }),
-          ),
-          60_000,
-          "Delayed stream did not cancel",
-        );
+        await bounded(cancelled, 60_000, "Delayed stream did not cancel");
       });
     }
   }
@@ -235,64 +232,72 @@ try {
     return current.messages.filter((message) => message.role === "assistant").at(-1)?.content;
   };
   const code = `OPENMUSE_FULL_BRIDGE_${randomUUID()}`;
-  assert.ok(String(await send(`Reply with only this verification code: ${code}`)).includes(code));
   const firstModel = source.MODEL.replace(/^openai[/:]/, "");
-  assert.equal(observedModels.at(-1), firstModel);
-  const catalog = await request("/api/models");
-  const secondModel = catalog.models.find(
-    (id: string) => id === "codex/gpt-5.6-sol-low" && id !== firstModel,
-  );
-  assert.ok(secondModel, "Need a second subscription model for picker synchronization proof");
-  await request("/api/models/selection", { modelId: secondModel });
-  const nextCode = `OPENMUSE_SELECTED_MODEL_${randomUUID()}`;
-  assert.ok(
-    String(await send(`Reply with only this verification code: ${nextCode}`)).includes(nextCode),
-  );
-  assert.equal(observedModels.at(-1), secondModel);
-  const linkBefore = await db.get("local-user", "openbot-threads", threadId);
-  await instance.agent.stop();
-  instance = await createApp(db, { ...config, model: "openai/should-not-be-used" });
-  assert.equal((await request("/api/models")).activeModel, secondModel);
-  const restored = new ProxiedCopilotRuntimeAgent({
-    runtimeUrl: `${config.publicUrl}/api/copilotkit`,
-    agentId: "default",
-    headers,
-  });
-  restored.threadId = threadId;
-  await bounded(restored.connectAgent(), 30_000, "Native history reload timed out");
-  assert.ok(
-    restored.messages.some(
-      (message) => message.role === "assistant" && String(message.content).includes(code),
-    ),
-  );
-  agent = restored;
-  const afterRestartCode = `OPENMUSE_RESTART_${randomUUID()}`;
-  assert.ok(
-    String(await send(`Reply with only this verification code: ${afterRestartCode}`)).includes(
-      afterRestartCode,
-    ),
-  );
-  assert.equal(observedModels.at(-1), secondModel);
-  assert.deepEqual(await db.get("local-user", "openbot-threads", threadId), linkBefore);
+  let secondModel = firstModel;
   let computer = "not-requested";
-  if (config.computerEnabled) {
-    await request("/api/models/selection", { modelId: firstModel });
-    const path = `/workspace/openbot-${randomUUID()}.txt`;
-    const text = `JETSON_OPENBOT_${randomUUID()}`;
-    await send(
-      `Use start_computer and write_computer_file to write exactly ${text} to ${path}, then use read_computer_file to confirm the saved content. Do not delegate this task.`,
+  if (!process.argv.includes("--stop-only")) {
+    console.log("Bridge gate: initial turn");
+    assert.ok(String(await send(`Reply with only this verification code: ${code}`)).includes(code));
+    assert.equal(observedModels.at(-1), firstModel);
+    const catalog = await request("/api/models");
+    secondModel = catalog.models.find(
+      (id: string) => id === "codex/gpt-5.6-sol-low" && id !== firstModel,
     );
-    const file = await instance.computer.read("local-user", path);
+    assert.ok(secondModel, "Need a second subscription model for picker synchronization proof");
+    await request("/api/models/selection", { modelId: secondModel });
+    const nextCode = `OPENMUSE_SELECTED_MODEL_${randomUUID()}`;
+    console.log("Bridge gate: selected model");
     assert.ok(
-      JSON.stringify(file).includes(text),
-      "Real Jetson file did not contain expected content",
+      String(await send(`Reply with only this verification code: ${nextCode}`)).includes(nextCode),
     );
-    await instance.computer.stop("local-user");
-    await instance.computer.start("local-user");
-    assert.ok(JSON.stringify(await instance.computer.read("local-user", path)).includes(text));
-    computer = "passed-file-write-read-and-restart";
+    assert.equal(observedModels.at(-1), secondModel);
+    const linkBefore = await db.get("local-user", "openbot-threads", threadId);
+    await instance.agent.stop();
+    instance = await createApp(db, { ...config, model: "openai/should-not-be-used" });
+    assert.equal((await request("/api/models")).activeModel, secondModel);
+    const restored = new ProxiedCopilotRuntimeAgent({
+      runtimeUrl: `${config.publicUrl}/api/copilotkit`,
+      agentId: "default",
+      headers,
+    });
+    restored.threadId = threadId;
+    await bounded(restored.connectAgent(), 30_000, "Native history reload timed out");
+    assert.ok(
+      restored.messages.some(
+        (message) => message.role === "assistant" && String(message.content).includes(code),
+      ),
+    );
+    agent = restored;
+    const afterRestartCode = `OPENMUSE_RESTART_${randomUUID()}`;
+    console.log("Bridge gate: restart");
+    assert.ok(
+      String(await send(`Reply with only this verification code: ${afterRestartCode}`)).includes(
+        afterRestartCode,
+      ),
+    );
+    assert.equal(observedModels.at(-1), secondModel);
+    assert.deepEqual(await db.get("local-user", "openbot-threads", threadId), linkBefore);
+    if (config.computerEnabled) {
+      console.log("Bridge gate: computer");
+      await request("/api/models/selection", { modelId: firstModel });
+      const path = `/workspace/openbot-${randomUUID()}.txt`;
+      const text = `JETSON_OPENBOT_${randomUUID()}`;
+      await send(
+        `Use start_computer and write_computer_file to write exactly ${text} to ${path}, then use read_computer_file to confirm the saved content. Do not delegate this task.`,
+      );
+      const file = await instance.computer.read("local-user", path);
+      assert.ok(
+        JSON.stringify(file).includes(text),
+        "Real Jetson file did not contain expected content",
+      );
+      await instance.computer.stop("local-user");
+      await instance.computer.start("local-user");
+      assert.ok(JSON.stringify(await instance.computer.read("local-user", path)).includes(text));
+      computer = "passed-file-write-read-and-restart";
+    }
   }
   const scoped = await instance.auth.openBotCookie(`Bearer ${token}`);
+  console.log("Bridge gate: cancellation");
   agent.addMessage({
     id: randomUUID(),
     role: "user",
@@ -315,7 +320,16 @@ try {
     "Stop did not reach the native model stream",
   );
   await bounded(stopping, 30_000, "Stopped client run did not settle");
+  const reconnected = new ProxiedCopilotRuntimeAgent({
+    runtimeUrl: `${config.publicUrl}/api/copilotkit`,
+    agentId: "default",
+    headers,
+  });
+  reconnected.threadId = threadId;
+  await bounded(reconnected.connectAgent(), 30_000, "History reconnect after stop did not settle");
+  agent = reconnected;
   const resumedCode = `OPENMUSE_AFTER_STOP_${randomUUID()}`;
+  console.log("Bridge gate: after stop");
   assert.ok(
     String(await send(`Reply with only this verification code: ${resumedCode}`)).includes(
       resumedCode,
@@ -340,20 +354,27 @@ try {
     (await fetch(`${config.publicUrl}/api/me`, { headers: { cookie: scoped } })).status,
     401,
   );
-  const result = {
-    upstream: "2e096d685ff0f18b5e80fd72e4ad71edb1d0be43",
-    nativeRuntimeBridge: "passed",
-    modelPicker: [firstModel, secondModel],
-    modelPersistence: "passed",
-    history: "passed",
-    channelIdentity: "passed",
-    stop: "passed-native-stream-cancellation",
-    resumeAfterStop: "passed",
-    unauthorizedThread: "rejected",
-    logout: "revoked",
-    computer,
-    production: "unchanged",
-  };
+  const result = process.argv.includes("--stop-only")
+    ? {
+        scope: "stop-only",
+        stop: "passed-native-stream-cancellation",
+        resumeAfterStop: "passed",
+        production: "unchanged",
+      }
+    : {
+        upstream: "2e096d685ff0f18b5e80fd72e4ad71edb1d0be43",
+        nativeRuntimeBridge: "passed",
+        modelPicker: [firstModel, secondModel],
+        modelPersistence: "passed",
+        history: "passed",
+        channelIdentity: "passed",
+        stop: "passed-native-stream-cancellation",
+        resumeAfterStop: "passed",
+        unauthorizedThread: "rejected",
+        logout: "revoked",
+        computer,
+        production: "unchanged",
+      };
   await writeFile(
     resolve(directory, "bridge-result.json"),
     `${JSON.stringify(result, null, 2)}\n`,

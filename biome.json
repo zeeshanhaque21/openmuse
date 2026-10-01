@@ -12,7 +12,7 @@
       "!**/.openmuse",
       "!spikes/subscription-runners/.runtime",
       "!spikes/subscription-runners/.results",
-      "!**/artifacts"
+      "!artifacts"
     ]
   },
   "formatter": { "enabled": true, "indentStyle": "space", "lineWidth": 100 },

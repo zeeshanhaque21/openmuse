@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { EventType, type RunAgentInput } from "@ag-ui/core";
-import { relayOpenBotEvent } from "../apps/server/src/openbot.ts";
+import { Auth } from "../apps/server/src/auth.ts";
+import type { Config } from "../apps/server/src/config.ts";
+import { createStore } from "../apps/server/src/db.ts";
+import { OpenBotBridge, relayOpenBotEvent } from "../apps/server/src/openbot.ts";
 
 const input: RunAgentInput = {
   threadId: "native-thread",
@@ -48,4 +51,41 @@ test("OpenBot relay retains text, tool arguments and custom events without cloud
       relayOpenBotEvent({ ...event, metadata: { cpki_ingested: true } }, input),
       event,
     );
+});
+
+test("raw bridge runs stop while linking, without a native model fallback or late events", async () => {
+  const db = await createStore();
+  const config: Config = {
+    mode: "sample",
+    host: "127.0.0.1",
+    port: 0,
+    publicUrl: "http://127.0.0.1",
+    dataDir: ".openmuse/test",
+    agentBackend: "openbot",
+    openBotUrl: "http://127.0.0.1:1",
+    googleRedirectUri: "http://127.0.0.1/api/google/callback",
+    allowedOrigins: [],
+  };
+  try {
+    const auth = new Auth(db, config, "test-signing-key");
+    const { token } = await auth.session();
+    const bridge = new OpenBotBridge(db, config, auth);
+    const agent = bridge.agent(`Bearer ${token}`);
+    const events: unknown[] = [];
+    let completed = 0;
+    agent
+      .run(input)
+      .subscribe({ next: (event) => events.push(event), complete: () => completed++ });
+    agent.abortRun();
+    assert.equal(completed, 1);
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    assert.deepEqual(events, []);
+    assert.deepEqual(await db.list("local-user", "openbot-threads"), []);
+    assert.throws(
+      () => new OpenBotBridge(db, { ...config, openBotUrl: undefined }, auth),
+      /no native fallback/,
+    );
+  } finally {
+    await db.close();
+  }
 });

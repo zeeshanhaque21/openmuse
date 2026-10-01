@@ -1,0 +1,10 @@
+# The deployed dependency image already contains this exact Core version (formerly a dev dependency).
+ARG API_IMAGE=openmuse-personal:jetson-cf855db
+FROM ${API_IMAGE}
+USER root
+COPY apps/server /app/apps/server
+COPY packages /app/packages
+COPY package.json pnpm-lock.yaml tsconfig.json tsconfig.build.json /app/
+RUN node --input-type=module -e "import {ProxiedCopilotRuntimeAgent} from '@copilotkit/core'; if (!ProxiedCopilotRuntimeAgent) process.exit(1)"
+RUN pnpm build:server
+USER node

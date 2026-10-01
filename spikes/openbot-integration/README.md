@@ -32,7 +32,8 @@ Do not resume the user's browser automation session without permission.
 ## Status
 
 The isolated live spike passed against upstream commit `2e096d685ff0f18b5e80fd72e4ad71edb1d0be43`.
-The production deployment is unchanged; this branch does not enable OpenBot in the hosted UI.
+The server-side runtime bridge is implemented behind `AGENT_BACKEND=openbot`.
+The production deployment has not yet been switched in this commit.
 
 ## Verified proof
 
@@ -83,3 +84,19 @@ The earlier plain-PostgreSQL attempt is retained as the stopped `openbot-integra
 - Prove active-run stop, disconnect/reconnect, and service-restart behavior.
 - Preserve approval and computer boundaries before granting any upstream tools.
 - Deploy only after the complete bridge passes those gates; leave the native agent active until then.
+
+## Completed bridge gates
+
+`bridge-smoke.ts --computer` passed the actual OpenMuse runtime, upstream runtime, private Bot callback, and existing OmniRoute gateway.
+It verified two selected Codex models from the catalog without substitution, saved selection after restart, local history restore, stable upstream channel identity, unauthorized-thread refusal, and logout revocation.
+The model used the real native computer tools to write and read a Jetson workspace file, which survived terminal restart.
+The separate `--stop-only` gate verified that Stop reaches the native model stream, followed by reconnect and a new reply on the same thread.
+Its delayed model stream is a deterministic cancellation fixture, not a model-quality or performance measurement.
+The full repository suite passed 282 tests before the final stop regression was added; lint and both TypeScript gates passed.
+
+OpenBot's linked Bots are remote agents calling OpenMuse's native agent, so model-picker synchronization and computer/Google approval policy reuse the existing responsible layers.
+The upstream receives no OmniRoute model key or Google credentials.
+There are no upstream built-in Bots, computer workers, or independent provider fallbacks in the personal tenant.
+Intelligence event envelopes must be stripped before relaying them into a second runtime; forwarding `cpki_ingested` and event IDs corrupts outer event durability.
+The inner runner has its own run ID, while protocol events are remapped to the authorized local thread/run.
+Explicit stop propagation must complete before its websocket is closed; unsubscribing first can discard the buffered stop request.

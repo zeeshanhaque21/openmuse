@@ -1,0 +1,10 @@
+# ARM64 dependencies are built from the pinned upstream lockfile, not copied from the Mac.
+ARG DEPS_IMAGE=openbot-integration-deps:2e096d6
+FROM ${DEPS_IMAGE}
+COPY artifacts/openbot-source/server /app/server
+COPY artifacts/openbot-source/shared /app/shared
+COPY infra/openbot-tenant /app/tenant
+USER bun
+ENV NODE_ENV=production PORT=3001 SERVER_PORT=3001 TENANT_PACKAGE_DIR=/app/tenant
+EXPOSE 3001
+CMD ["bun", "server/src/index.ts"]
