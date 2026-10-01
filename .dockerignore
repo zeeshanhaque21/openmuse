@@ -1,0 +1,12 @@
+.git
+.treehouse
+**/node_modules
+**/dist
+**/.expo
+.env
+.env.*
+**/*.env
+.openmuse
+**/.runtime
+**/.results
+**/.codebase-memory

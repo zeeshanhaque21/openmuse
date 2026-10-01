@@ -1,0 +1,4 @@
+ARG API_IMAGE=openmuse-personal:2606f6f
+FROM docker:29.3.1-cli AS cli
+FROM ${API_IMAGE}
+COPY --from=cli /usr/local/bin/docker /usr/local/bin/docker

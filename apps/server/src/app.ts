@@ -19,6 +19,7 @@ import { AgentService } from "./engine/service.ts";
 import { AppError } from "./errors.ts";
 import { Files } from "./files.ts";
 import { GoogleAuth } from "./google-auth.ts";
+import { ModelSettings } from "./models.ts";
 import { WorkspaceService } from "./workspace.ts";
 
 export async function createApp(
@@ -27,6 +28,8 @@ export async function createApp(
   options: { docker?: DockerRunner } = {},
 ) {
   assertApiDeploymentConfig(config);
+  const models = new ModelSettings(db, config);
+  await models.restore();
   const auth = await createAuth(db, config),
     files = new Files(db, config, auth),
     google = new GoogleAuth(db, config),
@@ -98,18 +101,35 @@ export async function createApp(
   );
   let loginWindow = 0,
     loginAttempts = 0;
-  app.post("/api/session", async (c) => {
+  app.get("/api/auth/status", async (c) => {
+    c.header("Cache-Control", "no-store");
+    return c.json(await auth.status());
+  });
+  app.use("/api/session", async (_c, next) => {
     if (Date.now() - loginWindow > 60000) {
       loginWindow = Date.now();
       loginAttempts = 0;
     }
     if (++loginAttempts > 30)
       throw new AppError("Too many sign-in attempts. Try again in a minute.", 429);
-    const body = z.object({ accessKey: z.string().optional() }).parse(await c.req.json());
-    const session = await auth.session(body.accessKey);
+    await next();
+  });
+  app.post("/api/session", async (c) => {
+    const body = z
+      .object({
+        accessKey: z.string().max(1024).optional(),
+        password: z.string().max(1024).optional(),
+        setupKey: z.string().max(1024).optional(),
+      })
+      .parse(await c.req.json());
+    const session =
+      body.setupKey !== undefined
+        ? await auth.setup(body.setupKey, body.password ?? "")
+        : await auth.session(body.accessKey, body.password);
     await workspace.ensureSample("local-user", actions);
     await agent.ensure("local-user");
     if (config.mode === "sample") await agent.refreshIdeas("local-user");
+    c.header("Cache-Control", "no-store");
     return c.json(session);
   });
   app.get("/api/google/callback", async (c) => {
@@ -134,6 +154,18 @@ export async function createApp(
         : await auth.owner(c.req.header("authorization"));
     c.set("owner", owner);
     await next();
+  });
+  app.delete("/api/session", async (c) => {
+    await auth.logout(c.req.header("authorization"));
+    return c.json({ ok: true });
+  });
+  app.get("/api/models", async (c) => {
+    c.header("Cache-Control", "no-store");
+    return c.json(await models.catalog());
+  });
+  app.post("/api/models/selection", async (c) => {
+    const { modelId } = z.object({ modelId: z.string().min(1).max(512) }).parse(await c.req.json());
+    return c.json(await models.select(modelId));
   });
   app.get("/api/workspace", async (c) => {
     const [snapshot, reachable] = await Promise.all([

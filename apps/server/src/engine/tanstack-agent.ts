@@ -9,14 +9,15 @@ import {
 import { chat, maxIterations, type SchemaInput, toolDefinition } from "@tanstack/ai";
 import { type AnthropicChatModel, anthropicText } from "@tanstack/ai-anthropic";
 import { type GeminiTextModel, geminiText } from "@tanstack/ai-gemini";
-import { type OpenAIChatModel, openaiText } from "@tanstack/ai-openai";
+import { createOpenaiChatCompletions, type OpenAIChatModel, openaiText } from "@tanstack/ai-openai";
 import { map, mergeMap, type Observable } from "rxjs";
 import { z } from "zod";
+import { subscriptionSpikeAgent } from "../../../../spikes/subscription-runners/agent.ts";
 import { MODEL_MAX_RETRIES } from "../config.ts";
 
 // Same "provider/model" strings, env vars and base URL formats as the AI SDK resolver in
 // @copilotkit/runtime. Each provider SDK retries transient failures up to MODEL_MAX_RETRIES times.
-function adapter(spec: string) {
+function adapter(spec: string, gateway?: { url: string; key: string }) {
   const [, provider = "", model = ""] = spec.trim().match(/^([^/:]*)[/:](.*)$/) ?? [];
   if (!provider || !model.trim())
     throw new Error(
@@ -25,6 +26,11 @@ function adapter(spec: string) {
   const id = model.trim();
   switch (provider.toLowerCase()) {
     case "openai":
+      if (gateway)
+        return createOpenaiChatCompletions(id as OpenAIChatModel, gateway.key, {
+          baseURL: gateway.url,
+          maxRetries: MODEL_MAX_RETRIES,
+        });
       return openaiText(id as OpenAIChatModel, {
         baseURL: process.env.OPENAI_BASE_URL,
         maxRetries: MODEL_MAX_RETRIES,
@@ -100,12 +106,19 @@ const stateTools = [
 /** A BuiltInAgent in TanStack factory mode with the options of the classic AI SDK mode. */
 export function tanstackAgent(options: {
   model: string;
+  gateway?: { url: string; key: string };
   maxSteps: number;
   tools: ToolDefinition[];
   prompt: string;
   /** Said when the step limit, not the model, ends a run; otherwise the reply just stops. */
   stepLimitNote?: string;
 }) {
+  // Explicit local-only feasibility gate; subscription runners are not deployment-ready.
+  if (
+    process.env.OPENMUSE_SUBSCRIPTION_SPIKE === "1" &&
+    ["claude-code/subscription", "codex/subscription"].includes(options.model)
+  )
+    return subscriptionSpikeAgent(options);
   const agent = new BuiltInAgent({
     type: "tanstack",
     factory: ({ input, abortController }) => {
@@ -123,7 +136,7 @@ export function tanstackAgent(options: {
       )
         system += `\n## Application State\nThis is state from the application that you can edit by calling AGUISendStateSnapshot or AGUISendStateDelta.\n\`\`\`json\n${JSON.stringify(input.state, null, 2)}\n\`\`\`\n`;
       return chat({
-        adapter: adapter(options.model),
+        adapter: adapter(options.model, options.gateway),
         messages: converted.messages,
         systemPrompts: system ? [system] : [],
         tools: [

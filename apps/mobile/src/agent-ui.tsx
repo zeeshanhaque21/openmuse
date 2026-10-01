@@ -34,6 +34,7 @@ import type {
   RunEvent,
 } from "../../../packages/domain/src/agent";
 import { useAgentWorkspace } from "./agent-workspace";
+import { ModelPicker } from "./model-picker";
 import { ActivityScreen, ConnectionsScreen } from "./screens";
 import {
   Button,
@@ -1727,6 +1728,7 @@ export function AppsScreen() {
   return (
     <View style={{ gap: 22 }}>
       <AgentStatus />
+      <ModelPicker />
       <Field
         label="Search apps"
         value={query}

@@ -32,13 +32,24 @@ export class MuseApi {
 
 export async function createSession(
   accessKey?: string,
+  credentials?: { password: string; setupKey?: string },
 ): Promise<{ token: string; mode: "sample" | "live" }> {
   const response = await fetch(`${API_URL}/api/session`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ accessKey }),
+    body: JSON.stringify({ accessKey, ...credentials }),
   });
   const payload = await response.json();
   if (!response.ok) throw new Error(payload.error || "Could not open your workspace.");
+  return payload;
+}
+
+export async function authStatus(): Promise<{
+  method: "password" | "access-key";
+  setupRequired: boolean;
+}> {
+  const response = await fetch(`${API_URL}/api/auth/status`, { cache: "no-store" });
+  const payload = await response.json();
+  if (!response.ok) throw new Error(payload.error || "Could not check owner setup.");
   return payload;
 }
