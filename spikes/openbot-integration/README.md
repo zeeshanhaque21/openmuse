@@ -33,7 +33,10 @@ Do not resume the user's browser automation session without permission.
 
 The isolated live spike passed against upstream commit `2e096d685ff0f18b5e80fd72e4ad71edb1d0be43`.
 The server-side runtime bridge is implemented behind `AGENT_BACKEND=openbot`.
-The production deployment has not yet been switched in this commit.
+The personal production API is now configured for OpenBot; the frontend remains OpenMuse.
+Production health, protected routes, upstream startup, and real authority forgery rejection passed.
+An authenticated production-owner turn and hosted browser review still require the owner's session and permission to resume the browser.
+See [the deployment runbook](../../docs/deployment/openbot.md) for service names, evidence limits, and rollback.
 
 ## Verified proof
 
@@ -50,7 +53,7 @@ The live model was `codex/gpt-5.6-sol`, the gateway ID corresponding to OpenMuse
 No alternative model was selected.
 The spike uses the existing CopilotKit Intelligence project key because the full OpenBot runtime requires Intelligence.
 There was no paid service provisioning or fallback.
-This verifies one conversation, not production deployment, runtime switching, arbitrary catalog models, stopping an active run, or computer policy.
+This initial spike verified one conversation only; the later integrated bridge gates below provide the broader proof.
 
 ## Reproduce
 
@@ -75,24 +78,19 @@ The Jetson test database is stopped after the successful proof, with its named v
 Run `docker start openbot-integration-pgvector` on the Jetson before another conversation smoke.
 The earlier plain-PostgreSQL attempt is retained as the stopped `openbot-integration-postgres` container, not used by the proof.
 
-## Remaining integration gates
+## Remaining owner validation
 
-- Mount the identity authority only for configured upstream connections, without widening workspace authentication.
-- Keep upstream credentials and Intelligence metadata on the OpenMuse server while relaying streams to the native client.
-- Bind local conversations to authorized upstream channels; test unauthorized thread IDs and cross-deployment credentials.
-- Keep the saved OmniRoute picker selection effective for every upstream run rather than using a process-static `BOT_MODEL`.
-- Prove active-run stop, disconnect/reconnect, and service-restart behavior.
-- Preserve approval and computer boundaries before granting any upstream tools.
-- Deploy only after the complete bridge passes those gates; leave the native agent active until then.
+- With permission to resume the hosted browser, send one owner-authenticated production turn and inspect the rendered reply, model picker, history, and Stop/reconnect interaction.
+- Verify PR evidence rendering in the logged-in browser without taking over the user's browser task space.
 
 ## Completed bridge gates
 
 `bridge-smoke.ts --computer` passed the actual OpenMuse runtime, upstream runtime, private Bot callback, and existing OmniRoute gateway.
 It verified two selected Codex models from the catalog without substitution, saved selection after restart, local history restore, stable upstream channel identity, unauthorized-thread refusal, and logout revocation.
 The model used the real native computer tools to write and read a Jetson workspace file, which survived terminal restart.
-The separate `--stop-only` gate verified that Stop reaches the native model stream, followed by reconnect and a new reply on the same thread.
+The final complete `--computer` gate also verified that Stop reaches the native model stream, followed by reconnect and a new reply on the same thread.
 Its delayed model stream is a deterministic cancellation fixture, not a model-quality or performance measurement.
-The full repository suite passed 282 tests before the final stop regression was added; lint and both TypeScript gates passed.
+The final full repository suite passed 283 tests; the focused owner/identity/bridge regression passed 5 tests, and lint and both TypeScript gates passed.
 
 OpenBot's linked Bots are remote agents calling OpenMuse's native agent, so model-picker synchronization and computer/Google approval policy reuse the existing responsible layers.
 The upstream receives no OmniRoute model key or Google credentials.
