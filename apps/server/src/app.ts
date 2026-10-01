@@ -20,6 +20,7 @@ import { AppError } from "./errors.ts";
 import { Files } from "./files.ts";
 import { GoogleAuth } from "./google-auth.ts";
 import { ModelSettings } from "./models.ts";
+import { OpenBotBridge } from "./openbot.ts";
 import { WorkspaceService } from "./workspace.ts";
 
 export async function createApp(
@@ -45,7 +46,9 @@ export async function createApp(
   const computer = new ComputerService(db, config, options.docker);
   const agent = new AgentService(db, config, workspace, files, actions, browser, computer);
   const intelligence = new CopilotKitIntelligence({ apiKey: config.intelligenceApiKey });
-  const runtime = makeRuntime(config, agent, auth, intelligence);
+  const openBot =
+    config.agentBackend === "openbot" ? new OpenBotBridge(db, config, auth) : undefined;
+  const runtime = makeRuntime(config, agent, auth, intelligence, openBot);
   const app = new Hono<{ Variables: { owner: string } }>();
   const origins = new Set([...config.allowedOrigins, new URL(config.publicUrl).origin]);
   app.use("*", async (c, next) => {
@@ -97,12 +100,16 @@ export async function createApp(
       mode: config.mode,
       agentConfigured: agentConfigured(config),
       browserConfigured: Boolean(config.workerUrl && config.workerToken),
+      agentBackend: config.agentBackend,
     }),
   );
   let loginWindow = 0,
     loginAttempts = 0;
   app.get("/api/auth/status", async (c) => {
     c.header("Cache-Control", "no-store");
+    // Public setup discovery stays public; a supplied saved session must still be valid.
+    const authorization = c.req.header("authorization");
+    if (authorization) await auth.owner(authorization);
     return c.json(await auth.status());
   });
   app.use("/api/session", async (_c, next) => {
@@ -143,6 +150,8 @@ export async function createApp(
       "<h1>Google is connected</h1><p>Return to OpenMuse and refresh your workspace.</p>",
     );
   });
+  // Dedicated scoped credentials authorize only these two bridge routes, never the workspace API.
+  if (openBot) app.route("/api", openBot.routes(agent));
   app.use("/api/*", async (c, next) => {
     const signedRoute =
       /^\/api\/files\/[^/]+\/content$|^\/api\/browsers\/[^/]+\/(?:preview|console)$/.test(

@@ -42,9 +42,11 @@ export interface Config {
   jevMode?: "off" | "sample" | "live";
   typesafeApiKey?: string;
   jevModel?: string;
-  agentBackend: "sample" | "model" | "agui";
+  agentBackend: "sample" | "model" | "agui" | "openbot";
   agentUrl?: string;
   agentToken?: string;
+  openBotUrl?: string;
+  openBotCallbackUrl?: string;
   intelligenceApiKey?: string;
   googleClientId?: string;
   googleClientSecret?: string;
@@ -102,8 +104,8 @@ export function readConfig(): Config {
   if (mode !== "sample" && mode !== "live")
     throw new Error("WORKSPACE_MODE must be sample or live");
   const backend = process.env.AGENT_BACKEND ?? (mode === "sample" ? "sample" : "model");
-  if (backend !== "sample" && backend !== "model" && backend !== "agui")
-    throw new Error("AGENT_BACKEND must be sample, model or agui");
+  if (!["sample", "model", "agui", "openbot"].includes(backend))
+    throw new Error("AGENT_BACKEND must be sample, model, agui or openbot");
   if (mode === "live" && backend === "sample")
     throw new Error("Live workspaces cannot use the sample agent");
   const jevMode = process.env.JEV_MODE ?? "off";
@@ -130,9 +132,11 @@ export function readConfig(): Config {
     jevMode,
     typesafeApiKey,
     jevModel: process.env.JEV_MODEL?.trim() || defaultJevModel,
-    agentBackend: backend,
+    agentBackend: backend as Config["agentBackend"],
     agentUrl: process.env.AGENT_URL,
     agentToken: process.env.AGENT_TOKEN,
+    openBotUrl: process.env.OPENBOT_URL?.trim(),
+    openBotCallbackUrl: process.env.OPENBOT_CALLBACK_URL?.trim(),
     intelligenceApiKey: required("CPK_INTELLIGENCE_API_KEY", intelligenceKeyRequiredMessage),
     googleClientId: process.env.GOOGLE_CLIENT_ID,
     googleClientSecret: process.env.GOOGLE_CLIENT_SECRET,
@@ -158,5 +162,7 @@ export function readConfig(): Config {
     );
   if (mode === "sample" && !["127.0.0.1", "localhost", "::1"].includes(config.host))
     throw new Error("Sample workspace is local-only. HOST must be a loopback address.");
+  if (backend === "openbot" && !config.openBotUrl)
+    throw new Error("AGENT_BACKEND=openbot requires OPENBOT_URL");
   return config;
 }

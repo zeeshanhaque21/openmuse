@@ -1,5 +1,8 @@
 # OpenBot integration boundary
 
+> Historical source-inspection contract, superseded for the personal deployment by [the deployed bridge runbook](deployment/openbot.md) and [the live integration proof](../spikes/openbot-integration/README.md).
+> The implemented configuration uses `AGENT_BACKEND=openbot`, `OPENBOT_URL`, and optional `OPENBOT_CALLBACK_URL`, not the proposed settings below.
+
 Inspected September 15, 2026: `CopilotKit/OpenBot` `main` at [`a96d88c6fb75385842529d7db7d463f4a8c4a86e`](https://github.com/CopilotKit/OpenBot/tree/a96d88c6fb75385842529d7db7d463f4a8c4a86e). This is a source inspection, not a running integration. OpenBot is an alpha template whose workspaces are private; depend on public CopilotKit/AG-UI protocols and an HTTP adapter, not OpenBot package imports. [Repository](https://github.com/CopilotKit/OpenBot/blob/a96d88c6fb75385842529d7db7d463f4a8c4a86e/README.md)
 
 ## Recommended OpenMuse configuration

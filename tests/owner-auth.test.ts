@@ -77,12 +77,22 @@ test("single owner setup protects the HTTP workspace, persists across restart, a
     assert.equal(signedIn.status, 200);
     const session = await signedIn.json();
     const headers = { Authorization: `Bearer ${session.token}` };
+    assert.equal((await server.app.request("/api/auth/status", { headers })).status, 200);
+    assert.equal(
+      (
+        await server.app.request("/api/auth/status", {
+          headers: { Authorization: "Bearer forged" },
+        })
+      ).status,
+      401,
+    );
     assert.equal((await server.app.request("/api/workspace", { headers })).status, 200);
     assert.equal(
       (await server.app.request("/api/session", { method: "DELETE", headers })).status,
       200,
     );
     assert.equal((await server.app.request("/api/workspace", { headers })).status, 401);
+    assert.equal((await server.app.request("/api/auth/status", { headers })).status, 401);
     assert.equal(
       (await server.app.request("/api/session", { method: "DELETE", headers })).status,
       401,

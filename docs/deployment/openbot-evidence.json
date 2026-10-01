@@ -1,0 +1,38 @@
+{
+  "date": "2026-10-01",
+  "sourceCommit": "f0a27de067a1bfe319b989f047b57447ae903431",
+  "upstreamCommit": "2e096d685ff0f18b5e80fd72e4ad71edb1d0be43",
+  "isolatedCompleteBridge": {
+    "streamedReply": "passed",
+    "selectedModels": ["codex/gpt-5.6-sol", "codex/gpt-5.6-sol-low"],
+    "selectionPersistence": "passed",
+    "apiRestartAndHistory": "passed",
+    "stableChannelMapping": "passed",
+    "unauthorizedThread": "rejected",
+    "logoutRevocation": "passed",
+    "jetsonModelDrivenFileWriteReadAndRestart": "passed",
+    "deterministicDelayedStreamCancellation": "passed",
+    "sameThreadReconnectAndReplyAfterStop": "passed"
+  },
+  "production": {
+    "backend": "openbot",
+    "frontendAvailable": true,
+    "protectedRoutesRejectUnauthenticatedRequests": true,
+    "realIdentityAuthorityRejectsForgedCredentials": true,
+    "existingEnvironmentSettingsPreserved": true,
+    "authenticatedOwnerTurn": "pending-owner-session",
+    "visualReview": "pending-user-permission"
+  },
+  "repositoryChecks": {
+    "tests": 283,
+    "passed": 283,
+    "failed": 0,
+    "lint": "passed",
+    "serverTypecheck": "passed",
+    "mobileTypecheck": "passed",
+    "stabilityNote": "An earlier full-suite attempt reported one assertion failure without retained identifying output; two subsequent full suites passed. No cause or fix is claimed for that transient failure."
+  },
+  "noPaidRenderServicesAdded": true,
+  "automaticProviderFallbackAdded": false,
+  "productionOwnerBrowserAccessed": false
+}
