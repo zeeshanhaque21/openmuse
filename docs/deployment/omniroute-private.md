@@ -35,7 +35,7 @@ OpenMuse has its own separate one-time owner setup and password login.
 - Private API: https://moonscapenas.time-mora.ts.net:8443
 - Render static service: `srv-daurmkbncjis7382i11g`.
 - Render deploy `dep-daurmkrncjis7382i1t0` succeeded from commit `2606f6f`.
-- Backend: Docker container `openmuse-personal`, image `openmuse-personal:2606f6f`, unprivileged user, read-only root filesystem, private loopback listener, and restart policy.
+- Backend: Docker container `openmuse-personal`, image `openmuse-personal:jetson-cf855db`, unprivileged user, read-only root filesystem, private loopback listener, and restart policy.
 - Backend data: `/home/moonscape/projects/OpenMuse-subscription-setup/.openmuse/data`.
 - Backend health and owner-setup status returned HTTP 200 through Tailscale HTTPS.
 - Private workspace and model catalog returned HTTP 401 without a session.
@@ -44,7 +44,8 @@ OpenMuse has its own separate one-time owner setup and password login.
 
 The host kernel reported that Docker's requested memory limit could not be enforced.
 The container's 2 GB memory setting must not be reported as an effective limit.
-Browser/computer workers are not configured in this deployment; the app reports them as unavailable.
+Browser and computer services are now deployed on the Jetson and connected to the backend.
+See [Jetson computer deployment](jetson-computer.md) for boundaries, evidence, and operational details.
 
 The owner account is now set up and remained present after the Google configuration restart.
 The one-time code is stored privately under `.openmuse/owner-setup-code.txt` on moonscape.
@@ -59,8 +60,8 @@ The existing encryption key, owner setup key, gateway key, and persistent data d
 OpenMuse was recreated with the updated environment; the old stopped container is retained for rollback.
 Runtime verification confirmed `GoogleAuth.configured()` is true and token encryption/decryption works with the existing key.
 Public health checks returned HTTP 200 and owner setup remained complete after restart.
-The user still needs to complete Google's consent flow through Connect Google.
-Configured credentials do not establish that Google authorization has succeeded.
+The user confirmed Google connection succeeded after adding their account as a tester and enabling the Google APIs.
+That confirmation is user-reported, not an independently repeated consent-flow test.
 
 ## Validation notes
 
