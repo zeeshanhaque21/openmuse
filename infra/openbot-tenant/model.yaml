@@ -1,0 +1,5 @@
+# No built-in Bot is provisioned. Linked private Bots call OpenMuse's policy-owned agent.
+model:
+  provider: openai
+  credential_secret_ref: unused-remote-only
+  default_model: openmuse-remote-only

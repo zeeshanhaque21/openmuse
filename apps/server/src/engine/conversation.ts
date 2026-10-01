@@ -139,7 +139,16 @@ export class ConversationAgent extends AbstractAgent {
       `${requestKey}:${name}:${createHash("sha256").update(JSON.stringify(value)).digest("hex")}`;
     const browserAbort = new AbortController();
     const tools = [
-      ...computerTools(this.service.computer, this.service.files, this.owner, `chat:${requestKey}`),
+      ...computerTools(
+        this.service.computer,
+        this.service.files,
+        this.owner,
+        `chat:${requestKey}`,
+        {
+          signal: browserAbort.signal,
+          before: async () => browserAbort.signal.throwIfAborted(),
+        },
+      ),
       ...(jev
         ? [
             presentChoicesTool(

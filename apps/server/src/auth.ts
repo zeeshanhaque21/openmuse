@@ -102,7 +102,7 @@ export class Auth {
       .digest("hex");
     return `better-auth.session_token=${id}.${signature}`;
   }
-  async openBotIdentity(cookie?: string) {
+  async openBotOwner(cookie?: string) {
     const match = /^better-auth\.session_token=([a-f0-9]{64})\.([a-f0-9]{64})$/.exec(cookie ?? "");
     if (!match) throw new AppError("Sign in to OpenMuse", 401);
     const [, id, signature] = match;
@@ -111,7 +111,10 @@ export class Auth {
       .digest();
     if (!timingSafeEqual(expected, Buffer.from(signature, "hex")))
       throw new AppError("Sign in to OpenMuse", 401);
-    const owner = await this.sessionOwner(id);
+    return this.sessionOwner(id);
+  }
+  async openBotIdentity(cookie?: string) {
+    const owner = await this.openBotOwner(cookie);
     const userId = createHmac("sha256", this.signingKey)
       .update(`openbot-owner\n${owner}`)
       .digest("hex");
