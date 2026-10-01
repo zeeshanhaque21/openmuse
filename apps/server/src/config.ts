@@ -37,6 +37,8 @@ export interface Config {
   ownerSetupKey?: string;
   encryptionKey?: string;
   model?: string;
+  modelGatewayUrl?: string;
+  modelGatewayKey?: string;
   jevMode?: "off" | "sample" | "live";
   typesafeApiKey?: string;
   jevModel?: string;
@@ -123,6 +125,8 @@ export function readConfig(): Config {
     ownerSetupKey: process.env.OPENMUSE_OWNER_SETUP_KEY,
     encryptionKey: process.env.TOKEN_ENCRYPTION_KEY,
     model: process.env.MODEL,
+    modelGatewayUrl: process.env.OPENAI_BASE_URL,
+    modelGatewayKey: process.env.OPENAI_API_KEY,
     jevMode,
     typesafeApiKey,
     jevModel: process.env.JEV_MODEL?.trim() || defaultJevModel,

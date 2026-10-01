@@ -19,6 +19,7 @@ import { AgentService } from "./engine/service.ts";
 import { AppError } from "./errors.ts";
 import { Files } from "./files.ts";
 import { GoogleAuth } from "./google-auth.ts";
+import { ModelSettings } from "./models.ts";
 import { WorkspaceService } from "./workspace.ts";
 
 export async function createApp(
@@ -27,6 +28,8 @@ export async function createApp(
   options: { docker?: DockerRunner } = {},
 ) {
   assertApiDeploymentConfig(config);
+  const models = new ModelSettings(db, config);
+  await models.restore();
   const auth = await createAuth(db, config),
     files = new Files(db, config, auth),
     google = new GoogleAuth(db, config),
@@ -155,6 +158,14 @@ export async function createApp(
   app.delete("/api/session", async (c) => {
     await auth.logout(c.req.header("authorization"));
     return c.json({ ok: true });
+  });
+  app.get("/api/models", async (c) => {
+    c.header("Cache-Control", "no-store");
+    return c.json(await models.catalog());
+  });
+  app.post("/api/models/selection", async (c) => {
+    const { modelId } = z.object({ modelId: z.string().min(1).max(512) }).parse(await c.req.json());
+    return c.json(await models.select(modelId));
   });
   app.get("/api/workspace", async (c) => {
     const [snapshot, reachable] = await Promise.all([

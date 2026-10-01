@@ -8,8 +8,8 @@ import type { ActionProposal } from "../../packages/domain/src/index.ts";
 
 const provider = process.argv[2];
 assert.ok(
-  ["claude", "codex"].includes(provider),
-  "Usage: pnpm exec tsx task-smoke.ts claude|codex",
+  ["claude", "codex", "gateway"].includes(provider),
+  "Usage: node --import tsx task-smoke.ts claude|codex|gateway",
 );
 const directory = dirname(fileURLToPath(import.meta.url));
 const dataDir = join(directory, ".runtime", provider, "task");
@@ -28,7 +28,14 @@ const server = await createApp(db, {
   dataDir,
   agentBackend: "model",
   intelligenceApiKey: "test-project-key-never-sent",
-  model: provider === "claude" ? "claude-code/subscription" : "codex/subscription",
+  model:
+    provider === "gateway"
+      ? process.env.OPENMUSE_SMOKE_MODEL
+      : provider === "claude"
+        ? "claude-code/subscription"
+        : "codex/subscription",
+  modelGatewayUrl: provider === "gateway" ? process.env.OPENAI_BASE_URL : undefined,
+  modelGatewayKey: provider === "gateway" ? process.env.OPENAI_API_KEY : undefined,
   googleRedirectUri: "http://localhost:8787/api/google/callback",
   allowedOrigins: [],
 });
