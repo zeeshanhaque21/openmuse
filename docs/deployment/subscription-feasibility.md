@@ -20,7 +20,7 @@ No Render services were created and no hosting charges were authorized.
 | Fresh Linux subscription login and task | Not validated | Not validated |
 
 Task evidence came from one successful plan task and one approval-sensitive task per provider, using fictional sample data on macOS.
-Failures encountered before those successful runs are documented in the [spike README](../../spikes/subscription-runners/README.md).
+Failures encountered before those successful runs are documented in the [spike README](https://github.com/zeeshanhaque21/openmuse/blob/fe599bcd73131f2a48268ba242988c967cfaefa2/spikes/subscription-runners/README.md).
 These runs are functional checks, not performance benchmarks or exhaustive security proofs.
 The Linux checks used Debian with Node 24 on arm64; they do not establish Render's deployment-platform compatibility.
 The Linux image build excluded every file except its Dockerfile and dockerignore, so no Mac credentials entered the image.
