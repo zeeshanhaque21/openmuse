@@ -45,7 +45,7 @@ OpenMuse has its own separate one-time owner setup and password login.
 The host kernel reported that Docker's requested memory limit could not be enforced.
 The container's 2 GB memory setting must not be reported as an effective limit.
 Browser and computer services are now deployed on the Jetson and connected to the backend.
-See [Jetson computer deployment](jetson-computer.md) for boundaries, evidence, and operational details.
+See [Jetson computer deployment](https://github.com/zeeshanhaque21/openmuse/blob/8932ad9a23c9e8f0e6c3b26c4f1ffe9a3c399f8c/docs/deployment/jetson-computer.md) for boundaries, evidence, and operational details.
 
 The owner account is now set up and remained present after the Google configuration restart.
 The one-time code is stored privately under `.openmuse/owner-setup-code.txt` on moonscape.
@@ -70,5 +70,15 @@ Server, mobile, and spike TypeScript checks passed.
 A later full-suite attempt hit the 120-second harness deadline with 271 passing tests and one cancelled Jev persistence file.
 Do not report that attempt as a full-suite pass.
 The subsequent full-suite run with four concurrent test files and a 240-second budget passed all 278 tests, with zero failures, cancellations, or skips.
+That full-suite result predates the Jetson operational additions.
+The new deployment-configuration regression test passed, and the latest server/mobile TypeScript and repository lint gates passed.
+Real Jetson service, authenticated HTTP API, and infrastructure-restart checks passed as documented in the Jetson deployment report.
+
+## Jetson evidence
+
+This is Chromium on the Jetson loading a public page, not a screenshot of the hosted OpenMuse UI.
+Hosted UI dogfooding remains pending; the user-controlled browser session has not been resumed.
+
+![Jetson Chromium public-page smoke test](https://github.com/zeeshanhaque21/openmuse/blob/8932ad9a23c9e8f0e6c3b26c4f1ffe9a3c399f8c/assets/verification/jetson/browser.png?raw=true)
 
 Refs #1.
