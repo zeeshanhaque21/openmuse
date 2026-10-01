@@ -1,0 +1,5 @@
+{
+  "extends": "../../tsconfig.json",
+  "include": ["agent.ts", "task-smoke.ts"],
+  "exclude": [".runtime", ".results", "node_modules"]
+}
