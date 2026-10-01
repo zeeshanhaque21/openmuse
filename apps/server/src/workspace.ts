@@ -280,6 +280,8 @@ export class WorkspaceService {
       events = [];
     }
     const tokens = this.config.mode === "live" ? await this.googleAuth.tokens(owner) : null;
+    const openbotConfigured =
+      this.config.agentBackend === "openbot" && Boolean(this.config.openBotUrl);
     return {
       mode: this.config.mode,
       profile: {
@@ -315,14 +317,16 @@ export class WorkspaceService {
         {
           id: "openbot",
           name: "OpenBot",
-          status: "unconfigured",
-          capabilities: ["Integration adapter available"],
+          status: openbotConfigured ? "connected" : "unconfigured",
+          capabilities: openbotConfigured
+            ? ["Private conversations", "OpenMuse models and tools"]
+            : ["Integration adapter available"],
         },
       ],
       runtime: {
         provider: this.config.agentBackend === "sample" ? "sample" : "model",
         configured: agentConfigured(this.config),
-        openbotConfigured: false,
+        openbotConfigured,
         richThreads: true,
       },
     };

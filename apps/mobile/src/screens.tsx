@@ -1234,7 +1234,7 @@ export function ConnectionsScreen({ query = "" }: { query?: string }) {
       name: "OpenBot",
       icon: Sparkles,
       color: "#6866A6",
-      connected: false,
+      connected: w.runtime.openbotConfigured,
       group: "openbot",
     },
   ].filter((row) => `${row.name} ${row.group}`.toLowerCase().includes(query.toLowerCase()));
@@ -1309,7 +1309,7 @@ export function ConnectionsScreen({ query = "" }: { query?: string }) {
       {selected && (
         <Sheet
           title={selected === "google" ? "Google connections" : "OpenBot"}
-          subtitle={selected === "google" ? google?.account : "A computer for your agent"}
+          subtitle={selected === "google" ? google?.account : "Conversation backend"}
           onClose={() => setSelected(undefined)}
         >
           {selected === "google" ? (
@@ -1364,13 +1364,19 @@ export function ConnectionsScreen({ query = "" }: { query?: string }) {
           ) : (
             <View style={{ gap: 14 }}>
               <Text style={s.text}>
-                The OpenBot adapter is available in this open-source project. A live OpenBot backend
-                has not been configured.
+                {w.runtime.openbotConfigured
+                  ? "OpenBot is configured as your conversation backend."
+                  : "The OpenBot adapter is available in this open-source project. A live OpenBot backend has not been configured."}
               </Text>
               <Text style={s.muted}>
-                Your current computer uses OpenMuse’s persistent Chromium worker. OpenBot
-                integration will expand the execution backend while keeping this interface.
+                {w.runtime.openbotConfigured
+                  ? "OpenBot manages private conversations while OpenMuse uses your selected model and existing tools. Google and computer actions keep OpenMuse’s authorization and approval rules."
+                  : "Your current computer uses OpenMuse’s persistent Chromium worker. OpenBot integration can manage conversations while keeping this interface."}
               </Text>
+              <SettingsLine
+                label="Backend configuration"
+                value={w.runtime.openbotConfigured ? "Configured" : "Not configured"}
+              />
             </View>
           )}
         </Sheet>

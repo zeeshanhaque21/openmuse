@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { EventType, type RunAgentInput } from "@ag-ui/core";
+import { createApp } from "../apps/server/src/app.ts";
 import { Auth } from "../apps/server/src/auth.ts";
 import type { Config } from "../apps/server/src/config.ts";
 import { createStore } from "../apps/server/src/db.ts";
@@ -15,6 +16,53 @@ const input: RunAgentInput = {
   state: {},
   forwardedProps: {},
 };
+for (const [backend, enabled] of [
+  ["openbot", true],
+  ["sample", false],
+] as const) {
+  test(`authenticated workspace reports OpenBot configuration accurately for ${backend}`, async () => {
+    const db = await createStore();
+    const config: Config = {
+      mode: "sample",
+      host: "127.0.0.1",
+      port: 0,
+      publicUrl: "http://127.0.0.1",
+      dataDir: ".openmuse/test",
+      agentBackend: backend,
+      openBotUrl: "http://127.0.0.1:18902",
+      intelligenceApiKey: "test-project-key-never-sent",
+      googleRedirectUri: "http://127.0.0.1/api/google/callback",
+      allowedOrigins: [],
+    };
+    const instance = await createApp(db, config);
+    try {
+      const session = await instance.app.request("/api/session", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: "{}",
+      });
+      const { token } = await session.json();
+      const response = await instance.app.request("/api/workspace", {
+        headers: { authorization: `Bearer ${token}` },
+      });
+      assert.equal(response.status, 200);
+      const workspace = await response.json();
+      assert.equal(
+        workspace.runtime.openbotConfigured,
+        enabled,
+        "Configuration must match the enabled backend, not a static adapter placeholder",
+      );
+      assert.equal(
+        workspace.connections.find((connection: { id: string }) => connection.id === "openbot")
+          .status,
+        enabled ? "connected" : "unconfigured",
+      );
+    } finally {
+      await instance.agent.stop();
+      await db.close();
+    }
+  });
+}
 test("OpenBot envelopes cannot impersonate already-durable native Intelligence events", () => {
   const event = {
     type: EventType.RUN_STARTED,
