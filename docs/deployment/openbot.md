@@ -6,12 +6,14 @@ Tracks https://github.com/zeeshanhaque21/openmuse/issues/3 and draft https://git
 
 OpenMuse remains at https://openmuse-zeeshan.onrender.com/ on the existing free Render frontend.
 The private API is https://moonscapenas.time-mora.ts.net:8443 and requires Tailscale access.
-Moonscape runs `openmuse-personal` using `openmuse-personal:openbot-f0a27de`.
+Moonscape runs `openmuse-personal` using `openmuse-personal:openbot-e99d079`.
 Jetson runs `openbot-personal` using `openbot-personal:2e096d6-f0a27de` on tailnet-only port `18902`.
 Its private PostgreSQL container is `openbot-personal-db`, with persistent volume `openbot-personal-data` and no published database port.
 The upstream source is pinned to `2e096d685ff0f18b5e80fd72e4ad71edb1d0be43`.
 Existing Jetson `openmuse-engine` and `openmuse-browser` are unchanged.
 No paid Render service or automatic provider fallback was added.
+The frontend was manually deployed on Render at commit `e99d07906fd5b1c447d2bbae061198dccef996b3` to include the connection-status fix.
+Render disables auto-deploy for a specific-commit deployment, so the older configured `feat/subscription-provider-setup` branch cannot silently restore the stale status screen.
 
 ## Identity and policy
 
@@ -46,8 +48,21 @@ Stop propagated to a deterministic delayed model stream, followed by reconnect a
 The delayed stream tests cancellation, not model quality or performance.
 Private result receipts and logs are under `.openmuse/openbot-spike/`; they are not committed because they may contain account or session data.
 These isolated tests are not an authenticated production-owner conversation.
-The final production-owner conversation and visual review remain pending permission to resume the user's browser task space.
-No browser session was read or taken over to obtain credentials.
+The final production-owner conversation and visual review remain pending the owner's browser sign-in.
+The user authorized a new browser task space after the old one no longer existed.
+Task space `30` is handed to the user at the OpenMuse login screen; sign-in is required before completing the visual and authenticated-owner checks.
+No password was read or requested in chat.
+
+## Connection-status fix
+
+The reported warning was reproduced with an authenticated `/api/workspace` test: it returned `openbotConfigured: false` while `AGENT_BACKEND=openbot` was enabled.
+Both the workspace response and the Connections screen had hardcoded adapter-only placeholders.
+The workspace now derives OpenBot configuration from the enabled backend and upstream URL, and the screen uses that existing runtime flag for its row, description, and status.
+The wording says configured, not live health-checked, because configuration does not guarantee upstream availability.
+Regression tests cover both enabled OpenBot and native/sample mode with an unused OpenBot URL.
+All 285 repository tests passed after the fix; lint and both TypeScript checks passed.
+A full-suite run also exposed a fake-Docker CLI startup exceeding its three-second fixture timeout.
+Successful fixture commands now allow 30 seconds under full-suite contention, while the explicit hanging-process test still uses a 100-millisecond timeout.
 
 ## Rollback
 
@@ -59,3 +74,4 @@ Then confirm `/api/health` is healthy and the original protected routes still re
 For a persistent configuration rollback, restore only the verified pre-OpenBot environment backup after checking the current file; retain the updated file as a separately named backup.
 Do not delete the upstream database, volume, or existing Jetson worker services.
 The stopped `openbot-personal-before-dns` container is retained as network-configuration evidence, not an active service.
+The prior integrated API is also retained as stopped `openmuse-personal-before-status-e99d079` for rollback of the status-only change.

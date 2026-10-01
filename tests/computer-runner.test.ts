@@ -23,13 +23,16 @@ test("Docker subprocess uses literal argv, strips provider credentials, caps out
   process.env.OPENMUSE_TEST_SECRET = "must-not-reach-docker-process";
   try {
     const literal = "$(touch /must-not-run) ; echo $HOME";
-    const args = await runDocker(["exec", literal], { timeoutMs: 3000 });
+    // Full-suite workers contend for CPU while loading embedded Postgres. Allow the Node CLI
+    // fixture to start; the separate 100 ms hanging-process check still proves timeout behavior.
+    const fixtureTimeout = 30_000;
+    const args = await runDocker(["exec", literal], { timeoutMs: fixtureTimeout });
     assert.equal(args.exitCode, 0);
     assert.deepEqual(JSON.parse(args.stdout), { args: ["exec", literal] });
-    const failed = await runDocker(["fail"], { timeoutMs: 3000 });
+    const failed = await runDocker(["fail"], { timeoutMs: fixtureTimeout });
     assert.equal(failed.exitCode, 17);
     assert.equal(failed.stderr, "failure");
-    const output = await runDocker(["output"], { timeoutMs: 3000, maxOutputBytes: 1000 });
+    const output = await runDocker(["output"], { timeoutMs: fixtureTimeout, maxOutputBytes: 1000 });
     assert.equal(output.truncated, true);
     assert.equal(Buffer.byteLength(output.stdout) + Buffer.byteLength(output.stderr), 1000);
     const started = Date.now();
