@@ -10,6 +10,8 @@
       "!**/ios",
       "!**/android",
       "!**/.openmuse",
+      "!spikes/subscription-runners/.runtime",
+      "!spikes/subscription-runners/.results",
       "!**/artifacts"
     ]
   },

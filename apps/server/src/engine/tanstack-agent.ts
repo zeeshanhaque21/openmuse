@@ -12,6 +12,7 @@ import { type GeminiTextModel, geminiText } from "@tanstack/ai-gemini";
 import { type OpenAIChatModel, openaiText } from "@tanstack/ai-openai";
 import { map, mergeMap, type Observable } from "rxjs";
 import { z } from "zod";
+import { subscriptionSpikeAgent } from "../../../../spikes/subscription-runners/agent.ts";
 import { MODEL_MAX_RETRIES } from "../config.ts";
 
 // Same "provider/model" strings, env vars and base URL formats as the AI SDK resolver in
@@ -106,6 +107,12 @@ export function tanstackAgent(options: {
   /** Said when the step limit, not the model, ends a run; otherwise the reply just stops. */
   stepLimitNote?: string;
 }) {
+  // Explicit local-only feasibility gate; subscription runners are not deployment-ready.
+  if (
+    process.env.OPENMUSE_SUBSCRIPTION_SPIKE === "1" &&
+    ["claude-code/subscription", "codex/subscription"].includes(options.model)
+  )
+    return subscriptionSpikeAgent(options);
   const agent = new BuiltInAgent({
     type: "tanstack",
     factory: ({ input, abortController }) => {
